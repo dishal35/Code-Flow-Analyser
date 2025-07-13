@@ -2,6 +2,7 @@ import logging
 import os
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from parser import extract_functions_and_calls
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,35 +32,40 @@ async def root():
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    logger.info(f"Uploading file: {file.filename}")
+    # Log the file name received
+    logger.info(f"File upload received: {file.filename}")
+    
     try:
-        if not file.filename.endswith(".py"):
-            logger.warning(f"Unsupported file type: {file.filename}")
-            raise HTTPException(status_code=400, detail="Only .py files allowed")
-
-        contents = await file.read()
-        file_size = len(contents)
-        file_content = contents.decode("utf-8")  # Reserved for AST parsing tomorrow
-
-        # Save file to uploads/
-        UPLOAD_DIR = "uploads"
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
-
-        with open(file_path, "wb") as f:
-            f.write(contents)
-
-        logger.info(f"File saved to {file_path} ({file_size} bytes)")
-
-        return {
-            "nodes": [{"id": "main"}],
-            "edges": [{"source": "main", "target": "helper"}],
-            "code": {"main": "def main():\n  helper()"}
+        # Validate file extension
+        if not file.filename.endswith('.py'):
+            logger.warning(f"Invalid file type: {file.filename}")
+            return {"error": "Only .py files are allowed"}
+        
+        # Read file content
+        content = await file.read()
+        file_content = content.decode('utf-8')
+        
+        logger.info(f"File {file.filename} uploaded successfully")
+        
+        # Parse the code and extract graph data
+        graph_data = extract_functions_and_calls(file_content)
+        
+        # Transform the parser output into the expected format
+        nodes = [{"id": func_name} for func_name in graph_data["functions"]]
+        edges = graph_data["calls"]
+        
+        result = {
+            "nodes": nodes,
+            "edges": edges,
+            "code": graph_data["code"]
         }
-
+        
+        logger.info(f"Generated graph with {len(nodes)} nodes and {len(edges)} edges")
+        return result
+        
     except Exception as e:
-        logger.error(f"Error uploading file: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        logger.error(f"Error processing file {file.filename}: {str(e)}")
+        raise
 
 
 
