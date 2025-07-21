@@ -87,6 +87,17 @@ def _extract_calls_from_function(function_node: ast.FunctionDef) -> Set[str]:
     
     return calls
 
+def validate_graph(graph: dict) -> bool:
+    try:
+        nodes = {node["id"] for node in graph["nodes"]}
+        for edge in graph["edges"]:
+            assert edge["source"] in nodes
+            assert edge["target"] in nodes
+        return True
+    except Exception as e:
+        logger.error(f"Graph validation failed: {e}")
+        return False
+
 # Test function
 def test_parser():
     """Test the parser with sample code."""
