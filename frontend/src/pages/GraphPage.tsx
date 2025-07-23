@@ -8,6 +8,7 @@ import ReactFlow, {
   ReactFlowProvider,
 } from 'react-flow-renderer';
 import axios from 'axios';
+import { layoutGraph } from '../utils/layoutGraph';
 const GraphPage: React.FC = () => {
     const [nodes, setNodes] = useState<Node[]>([]);
     const [edges, setEdges] = useState<Edge[]>([]);
@@ -17,7 +18,8 @@ const GraphPage: React.FC = () => {
       axios.get('http://localhost:8000/graph-preview')
         .then(res => {
           const { nodes, edges } = res.data;
-          setNodes(nodes);
+          const laidOutNodes = layoutGraph(nodes, edges);
+          setNodes(laidOutNodes);
           setEdges(edges);
         })
         .catch(err => {
